@@ -1,0 +1,10 @@
+name: nagome-mac-say
+description: Reading aloud Nagome plugin for Mac
+version: 1.0
+author: y0za
+method: std
+exec:
+- '{{path}}/nagome-mac-say'
+nagomever: ""
+subscribe:
+- nagome_comment
