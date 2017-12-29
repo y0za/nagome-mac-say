@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+const (
+	commentLifetime = 20 * time.Second
+)
+
 type Message struct {
 	Domain  string          `json:"domain"`
 	Command string          `json:"command"`
@@ -32,22 +36,22 @@ type CtCommentGot struct {
 	IsAnonymity      bool   `json:"is_anonymity"`
 }
 
-type SayOption struct {
-	Voice    string
-	Volume   float64
-	Rate     int
-	Duration time.Duration
+type SayArgs struct {
+	Text   string
+	Voice  string
+	Volume float64
+	Rate   int
 }
 
-func say(text string, o SayOption) {
-	input := fmt.Sprintf("[[%f]][[%d]]%s", o.Volume, o.Rate, text)
-	err := exec.Command("say", "-v", o.Voice, input).Run()
+func say(sa SayArgs) {
+	input := fmt.Sprintf("[[%f]][[%d]]%s", sa.Volume, sa.Rate, sa.Text)
+	err := exec.Command("say", "-v", sa.Voice, input).Run()
 	if err != nil {
 		log.Println("error occurred")
 	}
 }
 
-func handleRawMessage(data string, o SayOption) error {
+func handleRawMessage(data string) error {
 	var m Message
 
 	err := json.Unmarshal([]byte(data), &m)
@@ -57,13 +61,13 @@ func handleRawMessage(data string, o SayOption) error {
 
 	switch m.Command {
 	case "Got":
-		return handleCommentGot([]byte(m.Content), o)
+		return handleCommentGot([]byte(m.Content))
 	default:
 		return fmt.Errorf("unexpected command: %s", m.Command)
 	}
 }
 
-func handleCommentGot(content []byte, o SayOption) error {
+func handleCommentGot(content []byte) error {
 	var ccg CtCommentGot
 
 	err := json.Unmarshal(content, &ccg)
@@ -71,25 +75,24 @@ func handleCommentGot(content []byte, o SayOption) error {
 		return err
 	}
 
-	if time.Now().Add(-o.Duration).Before(ccg.Date) {
-		say(ccg.Comment, o)
+	if time.Now().Add(-commentLifetime).Before(ccg.Date) {
+		sa := SayArgs{
+			Text:   ccg.Comment,
+			Voice:  "Kyoko",
+			Volume: 0.9,
+			Rate:   200,
+		}
+		say(sa)
 	}
 
 	return nil
 }
 
 func main() {
-	option := SayOption{
-		Voice:    "Kyoko",
-		Volume:   0.9,
-		Rate:     200,
-		Duration: 20 * time.Second,
-	}
-
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		data := scanner.Text()
-		err := handleRawMessage(data, option)
+		err := handleRawMessage(data)
 		if err != nil {
 			log.Println(err)
 		}
