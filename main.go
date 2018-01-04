@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 )
 
@@ -51,7 +53,7 @@ func say(sa SayArgs) {
 	}
 }
 
-func handleRawMessage(data string) error {
+func handleRawMessage(data string, config SayConfig) error {
 	var m Message
 
 	err := json.Unmarshal([]byte(data), &m)
@@ -61,13 +63,13 @@ func handleRawMessage(data string) error {
 
 	switch m.Command {
 	case "Got":
-		return handleCommentGot([]byte(m.Content))
+		return handleCommentGot([]byte(m.Content), config)
 	default:
 		return fmt.Errorf("unexpected command: %s", m.Command)
 	}
 }
 
-func handleCommentGot(content []byte) error {
+func handleCommentGot(content []byte, config SayConfig) error {
 	var ccg CtCommentGot
 
 	err := json.Unmarshal(content, &ccg)
@@ -78,9 +80,9 @@ func handleCommentGot(content []byte) error {
 	if time.Now().Add(-commentLifetime).Before(ccg.Date) {
 		sa := SayArgs{
 			Text:   ccg.Comment,
-			Voice:  "Kyoko",
-			Volume: 0.9,
-			Rate:   200,
+			Voice:  config.Voice.Ja,
+			Volume: config.Volume,
+			Rate:   config.Rate,
 		}
 		say(sa)
 	}
@@ -88,17 +90,41 @@ func handleCommentGot(content []byte) error {
 	return nil
 }
 
+func loadConfig() (SayConfig, error) {
+	dir := filepath.Dir(os.Args[0])
+	path := filepath.Join(dir, "nagome-mac-say.yml")
+
+	file, err := os.Open(path)
+	if err != nil {
+		return SayConfig{}, err
+	}
+	defer file.Close()
+
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		return SayConfig{}, err
+	}
+
+	return parseConfig(data)
+}
+
 func main() {
+	config, err := loadConfig()
+	if err != nil {
+		log.Println("error occurred while reding config:", err)
+		return
+	}
+
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		data := scanner.Text()
-		err := handleRawMessage(data)
+		err = handleRawMessage(data, config)
 		if err != nil {
 			log.Println(err)
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
+	if err = scanner.Err(); err != nil {
 		log.Println("error occurred while reding stdin:", err)
 	}
 }
