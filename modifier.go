@@ -26,3 +26,15 @@ func (vlm VoiceLanguageModifier) Modify(sa SayArgs) (SayArgs, error) {
 	}
 	return sa, nil
 }
+
+type OverflowModifier struct {
+	Limit int
+}
+
+func (om OverflowModifier) Modify(sa SayArgs) (SayArgs, error) {
+	r := []rune(sa.Text)
+	if len(r) > om.Limit {
+		sa.Text = string(r[0:om.Limit])
+	}
+	return sa, nil
+}
