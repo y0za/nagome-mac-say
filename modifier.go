@@ -3,7 +3,7 @@ package main
 import "regexp"
 
 var (
-	asciiRegexp = regexp.MustCompile(`^[0x21-0x7e\s]+$`)
+	asciiRegexp = regexp.MustCompile(`^[\x21-\x7e\s]+$`)
 )
 
 type Modifier interface {
