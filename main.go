@@ -53,7 +53,7 @@ func say(sa SayArgs) {
 	}
 }
 
-func handleRawMessage(data string, config SayConfig) error {
+func handleRawMessage(data string, config SayConfig, modifiers []Modifier) error {
 	var m Message
 
 	err := json.Unmarshal([]byte(data), &m)
@@ -63,13 +63,13 @@ func handleRawMessage(data string, config SayConfig) error {
 
 	switch m.Command {
 	case "Got":
-		return handleCommentGot([]byte(m.Content), config)
+		return handleCommentGot([]byte(m.Content), config, modifiers)
 	default:
 		return fmt.Errorf("unexpected command: %s", m.Command)
 	}
 }
 
-func handleCommentGot(content []byte, config SayConfig) error {
+func handleCommentGot(content []byte, config SayConfig, modifiers []Modifier) error {
 	var ccg CtCommentGot
 
 	err := json.Unmarshal(content, &ccg)
@@ -83,6 +83,12 @@ func handleCommentGot(content []byte, config SayConfig) error {
 			Voice:  config.Voice.Ja,
 			Volume: config.Volume,
 			Rate:   config.Rate,
+		}
+		for _, m := range modifiers {
+			sa, err = m.Modify(sa)
+			if err != nil {
+				return err
+			}
 		}
 		say(sa)
 	}
@@ -108,6 +114,17 @@ func loadConfig() (SayConfig, error) {
 	return parseConfig(data)
 }
 
+func initModifiers(config SayConfig) []Modifier {
+	return []Modifier{
+		VoiceLanguageModifier{
+			Config: config,
+		},
+		OverflowModifier{
+			Limit: 60,
+		},
+	}
+}
+
 func main() {
 	config, err := loadConfig()
 	if err != nil {
@@ -115,10 +132,12 @@ func main() {
 		return
 	}
 
+	modifiers := initModifiers(config)
+
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		data := scanner.Text()
-		err = handleRawMessage(data, config)
+		err = handleRawMessage(data, config, modifiers)
 		if err != nil {
 			log.Println(err)
 		}
