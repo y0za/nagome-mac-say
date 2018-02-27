@@ -4,6 +4,7 @@ import "regexp"
 
 var (
 	asciiRegexp = regexp.MustCompile(`^[\x21-\x7e\s]+$`)
+	urlRegexp   = regexp.MustCompile(`https?:\/\/[^\s　]+`)
 )
 
 type Modifier interface {
@@ -36,5 +37,10 @@ func (om OverflowModifier) Modify(sa SayArgs) (SayArgs, error) {
 	if len(r) > om.Limit {
 		sa.Text = string(r[0:om.Limit])
 	}
+	return sa, nil
+}
+
+func OmitURL(sa SayArgs) (SayArgs, error) {
+	sa.Text = urlRegexp.ReplaceAllString(sa.Text, "URL省略")
 	return sa, nil
 }
