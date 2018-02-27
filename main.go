@@ -116,6 +116,7 @@ func loadConfig() (SayConfig, error) {
 
 func initModifiers(config SayConfig) []Modifier {
 	return []Modifier{
+		ModifierFunc(OmitURL),
 		VoiceLanguageModifier{
 			Config: config,
 		},
